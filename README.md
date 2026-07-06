@@ -2,6 +2,25 @@
 
 Dalamud plugin that searches in-game item names and pulls live market board listings from Universalis.
 
+## Install In Dalamud
+
+1. Open Dalamud settings with `/xlsettings`.
+2. Go to the `Experimental` tab.
+3. Find `Custom Plugin Repositories`.
+4. Paste this JSON URL:
+
+   `https://raw.githubusercontent.com/CherryFairy78/UniversalMarketBoard/main/pluginmaster.json`
+
+5. Click the `+` button.
+6. Save the settings.
+7. Open the plugin installer with `/xlplugins`.
+8. Search for `Universal Market Board` and install it.
+
+## Repository JSON
+
+- Custom repo JSON: `https://raw.githubusercontent.com/CherryFairy78/UniversalMarketBoard/main/pluginmaster.json`
+- Release zip: `https://github.com/CherryFairy78/UniversalMarketBoard/releases/download/v0.1.0/UniversalMarketBoard.zip`
+
 ## Features
 
 - Search for any item from the game data sheets

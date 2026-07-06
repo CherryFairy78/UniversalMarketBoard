@@ -1,0 +1,24 @@
+[
+  {
+    "Author": "megha",
+    "Name": "Universal Market Board",
+    "InternalName": "UniversalisMarketBoard",
+    "AssemblyVersion": "0.1.0.0",
+    "Description": "Browse HQ and NQ market board listings, search any item, switch between world or data centre scopes, and sort prices from highest to lowest. Slash command: /umb",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "Punchline": "Search item prices by data centre or world.",
+    "RepoUrl": "https://github.com/CherryFairy78/UniversalMarketBoard",
+    "Tags": [
+      "marketboard",
+      "universalis",
+      "prices",
+      "ffxiv"
+    ],
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/CherryFairy78/UniversalMarketBoard/releases/download/v0.1.0/UniversalMarketBoard.zip",
+    "DownloadLinkUpdate": "https://github.com/CherryFairy78/UniversalMarketBoard/releases/download/v0.1.0/UniversalMarketBoard.zip",
+    "LastUpdate": "1751843654"
+  }
+]

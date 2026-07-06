@@ -23,7 +23,8 @@ public sealed unsafe class Plugin : IDalamudPlugin
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
 
-    private const string CommandName = "/umb";
+    private const string MainCommandName = "/umb";
+    private const string DevCommandName = "/umbdev";
 
     public Configuration Configuration { get; }
     public WindowSystem WindowSystem { get; } = new("UniversalisMarketBoard");
@@ -32,6 +33,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
     private LifestreamTravelService LifestreamTravelService { get; }
     private MarketBoardWindow MainWindow { get; }
     private AppearanceWindow AppearanceWindow { get; }
+    private string ActiveCommandName { get; }
 
     public Plugin()
     {
@@ -46,13 +48,16 @@ public sealed unsafe class Plugin : IDalamudPlugin
         LifestreamTravelService = new LifestreamTravelService(PluginInterface);
         MainWindow = new MarketBoardWindow(this, universalisClient, ItemSearchIndex, LifestreamTravelService);
         AppearanceWindow = new AppearanceWindow(this);
+        ActiveCommandName = PluginInterface.IsDev ? DevCommandName : MainCommandName;
 
         WindowSystem.AddWindow(MainWindow);
         WindowSystem.AddWindow(AppearanceWindow);
 
-        CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
+        CommandManager.AddHandler(ActiveCommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open the Universal Market Board browser."
+            HelpMessage = PluginInterface.IsDev
+                ? "Open the Universal Market Board dev build."
+                : "Open the Universal Market Board browser."
         });
 
         ContextMenu.OnMenuOpened += OnMenuOpened;
@@ -74,7 +79,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
         MainWindow.Dispose();
         AppearanceWindow.Dispose();
 
-        CommandManager.RemoveHandler(CommandName);
+        CommandManager.RemoveHandler(ActiveCommandName);
     }
 
     private void OnCommand(string command, string args)

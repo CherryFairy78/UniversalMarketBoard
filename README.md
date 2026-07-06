@@ -19,7 +19,7 @@ Dalamud plugin that searches in-game item names and pulls live market board list
 ## Repository JSON
 
 - Custom repo JSON: `https://raw.githubusercontent.com/CherryFairy78/UniversalMarketBoard/main/pluginmaster.json`
-- Release zip: `https://github.com/CherryFairy78/UniversalMarketBoard/releases/download/v0.1.0/UniversalMarketBoard.zip`
+- Release zip: `https://github.com/CherryFairy78/UniversalMarketBoard/releases/download/v0.1.1/UniversalMarketBoard.zip`
 
 ## Features
 
@@ -27,7 +27,8 @@ Dalamud plugin that searches in-game item names and pulls live market board list
 - View prices for either a full data centre or a specific world
 - Toggle HQ and NQ listings independently
 - Sort listings from highest to lowest price or lowest to highest
-- Open the window with `/umb`
+- Open the installed version with `/umb`
+- Open the dev-loaded version with `/umbdev`
 
 ## Notes
 

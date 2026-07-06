@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <AssemblyName>UniversalisMarketBoard</AssemblyName>
+    <RootNamespace>UniversalisMarketBoard</RootNamespace>
+    <PackageProjectUrl>https://universalis.app/</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Description>Browse market board listings by item, world, or data center.</Description>
+    <IsPackable>false</IsPackable>
+    <DevDeployDir>$(MSBuildProjectDirectory)\..\Deploy\</DevDeployDir>
+  </PropertyGroup>
+
+  <Target Name="CopyDevPluginToStableLocation" AfterTargets="Build">
+    <ItemGroup>
+      <DevPluginSupportFiles Include="$(TargetDir)$(AssemblyName).json"
+                             Condition="Exists('$(TargetDir)$(AssemblyName).json')" />
+      <DevPluginSupportFiles Include="$(TargetDir)$(AssemblyName).deps.json"
+                             Condition="Exists('$(TargetDir)$(AssemblyName).deps.json')" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(DevDeployDir)" />
+    <Copy SourceFiles="@(DevPluginSupportFiles)"
+          DestinationFolder="$(DevDeployDir)"
+          SkipUnchangedFiles="false"
+          OverwriteReadOnlyFiles="true" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).dll"
+          DestinationFiles="$(DevDeployDir)$(AssemblyName).dll"
+          SkipUnchangedFiles="false"
+          OverwriteReadOnlyFiles="true" />
+  </Target>
+</Project>

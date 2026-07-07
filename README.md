@@ -19,7 +19,7 @@ Dalamud plugin that searches in-game item names and pulls live market board list
 ## Repository JSON
 
 - Custom repo JSON: `https://raw.githubusercontent.com/CherryFairy78/UniversalMarketBoard/main/pluginmaster.json`
-- Release zip: `https://github.com/CherryFairy78/UniversalMarketBoard/releases/download/v0.1.4/UniversalMarketBoard.zip`
+- Release zip: `https://github.com/CherryFairy78/UniversalMarketBoard/releases/download/v0.1.6/UniversalMarketBoard.zip`
 
 ## Features
 

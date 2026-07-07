@@ -150,6 +150,13 @@ public sealed unsafe class Plugin : IDalamudPlugin
         }
 
         if (args.MenuType == ContextMenuType.Default &&
+            IsVendorContextAddon(args.AddonName) &&
+            TryGetHoveredItemId(out itemId))
+        {
+            return true;
+        }
+
+        if (args.MenuType == ContextMenuType.Default &&
             args.Target is MenuTargetDefault defaultTarget &&
             TryResolveDefaultTargetItemId(defaultTarget, out itemId))
         {
@@ -158,6 +165,27 @@ public sealed unsafe class Plugin : IDalamudPlugin
 
         itemId = 0;
         return false;
+    }
+
+    private static bool IsVendorContextAddon(string? addonName)
+    {
+        if (string.IsNullOrWhiteSpace(addonName))
+        {
+            return false;
+        }
+
+        return addonName.Contains("Shop", StringComparison.OrdinalIgnoreCase)
+            || addonName.Contains("Exchange", StringComparison.OrdinalIgnoreCase)
+            || addonName.Contains("Trade", StringComparison.OrdinalIgnoreCase)
+            || addonName.Contains("Store", StringComparison.OrdinalIgnoreCase)
+            || addonName.Contains("Collectables", StringComparison.OrdinalIgnoreCase)
+            || addonName.Contains("Inclusion", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryGetHoveredItemId(out uint itemId)
+    {
+        itemId = NormalizeContextItemId((uint)GameGui.HoveredItem);
+        return itemId != 0;
     }
 
     private bool TryResolveDefaultTargetItemId(MenuTargetDefault defaultTarget, out uint itemId)
@@ -271,6 +299,11 @@ public sealed unsafe class Plugin : IDalamudPlugin
 
     private static uint NormalizeContextItemId(uint itemId)
     {
+        if (itemId > 1_000_000)
+        {
+            itemId -= 1_000_000;
+        }
+
         if (itemId > 500_000)
         {
             itemId -= 500_000;

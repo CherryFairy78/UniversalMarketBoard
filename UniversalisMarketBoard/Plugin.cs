@@ -32,6 +32,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
     private const string DevCommandName = "/umbdev";
 
     public Configuration Configuration { get; }
+    public string VersionLabel { get; }
     public WindowSystem WindowSystem { get; } = new("UniversalisMarketBoard");
 
     private ItemSearchIndex ItemSearchIndex { get; }
@@ -42,6 +43,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
 
     public Plugin()
     {
+        VersionLabel = FormatVersionLabel();
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         if (Configuration.EnsureDefaults())
         {
@@ -301,6 +303,18 @@ public sealed unsafe class Plugin : IDalamudPlugin
         {
             Log.Warning(ex, "Unable to clean old plugin log files.");
         }
+    }
+
+    private static string FormatVersionLabel()
+    {
+        var version = typeof(Plugin).Assembly.GetName().Version;
+        if (version == null)
+        {
+            return "v0.0.0";
+        }
+
+        var build = version.Build >= 0 ? version.Build : 0;
+        return $"v{version.Major}.{version.Minor}.{build}";
     }
 
     private void OpenItem(uint itemId)

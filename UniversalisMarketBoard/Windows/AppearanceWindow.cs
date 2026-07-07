@@ -55,7 +55,7 @@ public sealed class AppearanceWindow : Window, IDisposable
 
     public override void Draw()
     {
-        WindowName = $"{plugin.Configuration.WindowHeaderText} Appearance###UniversalisMarketBoardAppearance";
+        WindowName = $"{plugin.Configuration.WindowHeaderText} Appearance {plugin.VersionLabel}###UniversalisMarketBoardAppearance";
         ImGui.PushStyleColor(ImGuiCol.Text, plugin.Configuration.TextColor.ToVector4());
         ImGui.TextColored(plugin.Configuration.HeadingColor.ToVector4(), "Appearance");
         ImGui.Spacing();

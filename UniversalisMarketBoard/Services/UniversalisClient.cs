@@ -12,6 +12,7 @@ namespace UniversalisMarketBoard.Services;
 
 public sealed class UniversalisClient
 {
+    private static readonly TimeSpan MarketDataCacheLifetime = TimeSpan.FromMinutes(2);
     private static readonly TimeSpan[] RetryDelays =
     [
         TimeSpan.FromMilliseconds(350),
@@ -28,6 +29,8 @@ public sealed class UniversalisClient
     {
         PropertyNameCaseInsensitive = true,
     };
+    private static readonly Lock CacheLock = new();
+    private static readonly Dictionary<string, CachedMarketData> MarketDataCache = [];
 
     public async Task<MarketScopeCatalog> GetMarketScopeCatalogAsync(CancellationToken cancellationToken)
     {
@@ -58,18 +61,50 @@ public sealed class UniversalisClient
         };
     }
 
-    public async Task<UniversalisMarketData> GetMarketDataAsync(string scopeSelector, string scopeLabel, uint itemId, CancellationToken cancellationToken)
+    public bool TryGetCachedMarketData(string scopeSelector, string scopeLabel, uint itemId, bool? highQualityOnly, out UniversalisMarketData? marketData)
     {
-        var selector = Uri.EscapeDataString(scopeSelector);
-        var response = await GetOptionalAsync<UniversalisMarketResponse>($"{selector}/{itemId}", cancellationToken).ConfigureAwait(false);
+        var cacheKey = BuildMarketDataCacheKey(scopeSelector, itemId, highQualityOnly);
+        lock (CacheLock)
+        {
+            if (MarketDataCache.TryGetValue(cacheKey, out var cached) &&
+                DateTime.UtcNow - cached.StoredAtUtc <= MarketDataCacheLifetime)
+            {
+                marketData = cached.Data;
+                return true;
+            }
+        }
 
-        return new UniversalisMarketData
+        marketData = null;
+        return false;
+    }
+
+    public async Task<UniversalisMarketData> GetMarketDataAsync(string scopeSelector, string scopeLabel, uint itemId, bool? highQualityOnly, CancellationToken cancellationToken)
+    {
+        if (TryGetCachedMarketData(scopeSelector, scopeLabel, itemId, highQualityOnly, out var cachedMarketData) &&
+            cachedMarketData != null)
+        {
+            return cachedMarketData;
+        }
+
+        var selector = Uri.EscapeDataString(scopeSelector);
+        var query = $"entries=1{BuildHighQualityQuery(highQualityOnly)}";
+        var response = await GetOptionalAsync<UniversalisMarketResponse>($"{selector}/{itemId}?{query}", cancellationToken).ConfigureAwait(false);
+
+        var marketData = new UniversalisMarketData
         {
             ScopeLabel = scopeLabel,
             Listings = response?.Listings ?? [],
             RecentHistory = response?.RecentHistory ?? [],
             ApproxDailySales = response?.ApproxDailySales ?? 0,
         };
+
+        var cacheKey = BuildMarketDataCacheKey(scopeSelector, itemId, highQualityOnly);
+        lock (CacheLock)
+        {
+            MarketDataCache[cacheKey] = new CachedMarketData(DateTime.UtcNow, marketData);
+        }
+
+        return marketData;
     }
 
     private static async Task<T> GetAsync<T>(string relativePath, CancellationToken cancellationToken)
@@ -131,4 +166,21 @@ public sealed class UniversalisClient
             or HttpStatusCode.ServiceUnavailable
             or HttpStatusCode.GatewayTimeout;
     }
+
+    private static string BuildHighQualityQuery(bool? highQualityOnly)
+    {
+        if (highQualityOnly == null)
+        {
+            return string.Empty;
+        }
+
+        return $"&hq={(highQualityOnly.Value ? "true" : "false")}";
+    }
+
+    private static string BuildMarketDataCacheKey(string scopeSelector, uint itemId, bool? highQualityOnly)
+    {
+        return $"{scopeSelector}|{itemId}|{(highQualityOnly.HasValue ? (highQualityOnly.Value ? "hq" : "nq") : "all")}";
+    }
+
+    private sealed record CachedMarketData(DateTime StoredAtUtc, UniversalisMarketData Data);
 }

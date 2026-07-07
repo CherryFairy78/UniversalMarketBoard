@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Plugin.Services;
@@ -14,9 +14,13 @@ public sealed class ItemSearchIndex
 {
     private readonly IDataManager dataManager;
     private readonly Lock syncRoot = new();
-    private List<ItemSearchEntry> items = [];
+    private ItemSearchEntry[] items = [];
+    private ItemSearchEntry[] itemsBySearchKey = [];
     private Dictionary<string, ItemSearchEntry> itemsByExactName = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<uint, ItemSearchEntry> itemsById = [];
     private Dictionary<string, ItemSearchEntry> itemsByNormalizedName = new(StringComparer.OrdinalIgnoreCase);
+    private string lastSearchQuery = string.Empty;
+    private ItemSearchEntry[] lastSearchResults = [];
     private Task? loadTask;
 
     public ItemSearchIndex(IDataManager dataManager)
@@ -52,20 +56,85 @@ public sealed class ItemSearchIndex
         }
 
         var normalized = searchText.Trim().ToUpperInvariant();
-        var snapshot = items;
+        if (normalized.Length == 0)
+        {
+            return [];
+        }
 
-        return snapshot
-            .Where(item => item.SearchKey.Contains(normalized))
-            .OrderBy(item => item.SearchKey.StartsWith(normalized) ? 0 : 1)
-            .ThenBy(item => item.Name)
-            .Take(limit)
-            .ToList();
+        lock (syncRoot)
+        {
+            if (string.Equals(lastSearchQuery, normalized, StringComparison.Ordinal))
+            {
+                return lastSearchResults;
+            }
+        }
+
+        var startsWithMatches = new List<ItemSearchEntry>(limit);
+        var containsMatches = new List<ItemSearchEntry>(Math.Min(limit, 16));
+        var seenItemIds = new HashSet<uint>();
+        var prefixStartIndex = FindPrefixStartIndex(itemsBySearchKey, normalized);
+
+        for (var index = prefixStartIndex; index < itemsBySearchKey.Length && startsWithMatches.Count < limit; index++)
+        {
+            var item = itemsBySearchKey[index];
+            if (!item.SearchKey.StartsWith(normalized, StringComparison.Ordinal))
+            {
+                break;
+            }
+
+            startsWithMatches.Add(item);
+            seenItemIds.Add(item.ItemId);
+        }
+
+        if (startsWithMatches.Count < limit)
+        {
+            foreach (var item in items)
+            {
+                if (startsWithMatches.Count + containsMatches.Count >= limit)
+                {
+                    break;
+                }
+
+                if (!seenItemIds.Add(item.ItemId) || !item.SearchKey.Contains(normalized, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                containsMatches.Add(item);
+            }
+        }
+
+        if (startsWithMatches.Count == 0 && containsMatches.Count == 0)
+        {
+            lock (syncRoot)
+            {
+                lastSearchQuery = normalized;
+                lastSearchResults = Array.Empty<ItemSearchEntry>();
+            }
+
+            return [];
+        }
+
+        var results = new List<ItemSearchEntry>(Math.Min(limit, startsWithMatches.Count + containsMatches.Count));
+        results.AddRange(startsWithMatches);
+        if (results.Count < limit)
+        {
+            results.AddRange(containsMatches);
+        }
+
+        var resultArray = results.ToArray();
+        lock (syncRoot)
+        {
+            lastSearchQuery = normalized;
+            lastSearchResults = resultArray;
+        }
+
+        return resultArray;
     }
 
     public bool TryGetItem(uint itemId, out ItemSearchEntry? itemSearchEntry)
     {
-        itemSearchEntry = items.FirstOrDefault(item => item.ItemId == itemId);
-        return itemSearchEntry != null;
+        return itemsById.TryGetValue(itemId, out itemSearchEntry);
     }
 
     public bool TryGetItem(string itemName, out ItemSearchEntry? itemSearchEntry)
@@ -113,7 +182,12 @@ public sealed class ItemSearchIndex
             }
 
             loadedItems.Sort((left, right) => string.CompareOrdinal(left.Name, right.Name));
-            items = loadedItems;
+            items = [.. loadedItems];
+            itemsBySearchKey = loadedItems
+                .OrderBy(item => item.SearchKey, StringComparer.Ordinal)
+                .ThenBy(item => item.Name, StringComparer.Ordinal)
+                .ToArray();
+            itemsById = loadedItems.ToDictionary(item => item.ItemId);
             itemsByExactName = loadedItems
                 .GroupBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
@@ -122,7 +196,31 @@ public sealed class ItemSearchIndex
                 .Where(entry => !string.IsNullOrEmpty(entry.NormalizedName))
                 .GroupBy(entry => entry.NormalizedName, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.First().Item, StringComparer.OrdinalIgnoreCase);
+            lastSearchQuery = string.Empty;
+            lastSearchResults = Array.Empty<ItemSearchEntry>();
         }, cancellationToken);
+    }
+
+    private static int FindPrefixStartIndex(IReadOnlyList<ItemSearchEntry> source, string normalized)
+    {
+        var low = 0;
+        var high = source.Count;
+
+        while (low < high)
+        {
+            var middle = low + ((high - low) / 2);
+            var comparison = string.CompareOrdinal(source[middle].SearchKey, normalized);
+            if (comparison < 0)
+            {
+                low = middle + 1;
+            }
+            else
+            {
+                high = middle;
+            }
+        }
+
+        return low;
     }
 
     private static string NormalizeLookupName(string value)

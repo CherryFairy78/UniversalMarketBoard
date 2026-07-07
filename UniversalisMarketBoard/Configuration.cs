@@ -8,6 +8,8 @@ namespace UniversalisMarketBoard;
 [Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
+    private const string CurrentWindowTitle = "Universal Market Board";
+    private const string LegacyWindowTitle = "Universalis Market Board";
     private static readonly ThemeColor DefaultTextColor = ThemeColor.From(0.93f, 0.95f, 0.98f, 1f);
     private static readonly ThemeColor DefaultMutedTextColor = ThemeColor.From(0.63f, 0.68f, 0.77f, 1f);
     private static readonly ThemeColor DefaultHeadingColor = ThemeColor.From(0.47f, 0.62f, 0.96f, 1f);
@@ -29,7 +31,7 @@ public sealed class Configuration : IPluginConfiguration
     public bool ShowHighQuality { get; set; } = true;
     public bool ShowNormalQuality { get; set; } = true;
     public bool ShowContextMenuOption { get; set; } = true;
-    public string WindowHeaderText { get; set; } = "Universal Market Board";
+    public string WindowHeaderText { get; set; } = CurrentWindowTitle;
     public ThemeColor TextColor { get; set; } = DefaultTextColor.Clone();
     public ThemeColor MutedTextColor { get; set; } = DefaultMutedTextColor.Clone();
     public ThemeColor HeadingColor { get; set; } = DefaultHeadingColor.Clone();
@@ -49,7 +51,7 @@ public sealed class Configuration : IPluginConfiguration
 
     public void ApplyThemePreset(string themeName)
     {
-        WindowHeaderText = "Universal Market Board";
+        WindowHeaderText = CurrentWindowTitle;
 
         switch (themeName.Trim().ToLowerInvariant())
         {
@@ -170,7 +172,12 @@ public sealed class Configuration : IPluginConfiguration
 
         if (string.IsNullOrWhiteSpace(WindowHeaderText))
         {
-            WindowHeaderText = "Universal Market Board";
+            WindowHeaderText = CurrentWindowTitle;
+            changed = true;
+        }
+        else if (string.Equals(WindowHeaderText.Trim(), LegacyWindowTitle, StringComparison.OrdinalIgnoreCase))
+        {
+            WindowHeaderText = CurrentWindowTitle;
             changed = true;
         }
 

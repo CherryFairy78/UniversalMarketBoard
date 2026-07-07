@@ -25,6 +25,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
     private const float ListingCellHeight = 32f;
     private const float ListingCellSpacing = 7f;
     private const float SummaryCardMinWidth = 165f;
+    private const float SearchResultsHeight = 144f;
 
     private readonly Plugin plugin;
     private readonly UniversalisClient universalisClient;
@@ -32,6 +33,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
     private readonly LifestreamTravelService lifestreamTravelService;
 
     private CancellationTokenSource? bootstrapCts;
+    private CancellationTokenSource? itemSearchCts;
     private CancellationTokenSource? listingsCts;
 
     private string itemSearchText = string.Empty;
@@ -44,11 +46,11 @@ public sealed class MarketBoardWindow : Window, IDisposable
     private string? travelStatus;
     private bool travelStatusIsError;
     private bool isBootstrapping = true;
+    private bool isSearchingItems;
     private bool isLoadingListings;
     private bool resetCollapsedConditionNextFrame;
+    private int itemSearchRequestVersion;
     private int listingsRequestVersion;
-    private Vector2 listingHoverTooltipPosition;
-
     public MarketBoardWindow(
         Plugin plugin,
         UniversalisClient universalisClient,
@@ -76,13 +78,15 @@ public sealed class MarketBoardWindow : Window, IDisposable
     {
         bootstrapCts?.Cancel();
         bootstrapCts?.Dispose();
+        itemSearchCts?.Cancel();
+        itemSearchCts?.Dispose();
         listingsCts?.Cancel();
         listingsCts?.Dispose();
     }
 
     public override void Draw()
     {
-        WindowName = $"{plugin.Configuration.WindowHeaderText}###UniversalisMarketBoard";
+        WindowName = $"{plugin.Configuration.WindowHeaderText} {plugin.VersionLabel}###UniversalisMarketBoard";
         ImGui.PushStyleColor(ImGuiCol.Text, plugin.Configuration.TextColor.ToVector4());
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 18f);
         ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 14f);
@@ -148,7 +152,8 @@ public sealed class MarketBoardWindow : Window, IDisposable
 
         selectedItem = entry;
         itemSearchText = entry.Name;
-        itemSearchResults = itemSearchIndex.Search(itemSearchText, MaxSearchResults).ToList();
+        itemSearchResults = [entry];
+        RequestItemSearch();
 
         if (Collapsed == true)
         {
@@ -214,6 +219,46 @@ public sealed class MarketBoardWindow : Window, IDisposable
         }
     }
 
+    private void RequestItemSearch()
+    {
+        itemSearchCts?.Cancel();
+        itemSearchCts?.Dispose();
+
+        if (string.IsNullOrWhiteSpace(itemSearchText))
+        {
+            itemSearchResults = [];
+            isSearchingItems = false;
+            return;
+        }
+
+        itemSearchCts = new CancellationTokenSource();
+        var cancellationToken = itemSearchCts.Token;
+        var searchText = itemSearchText;
+        var requestVersion = Interlocked.Increment(ref itemSearchRequestVersion);
+        isSearchingItems = true;
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                var results = itemSearchIndex.Search(searchText, MaxSearchResults).ToList();
+                if (cancellationToken.IsCancellationRequested || requestVersion != itemSearchRequestVersion)
+                {
+                    return;
+                }
+
+                itemSearchResults = results;
+            }
+            finally
+            {
+                if (requestVersion == itemSearchRequestVersion)
+                {
+                    isSearchingItems = false;
+                }
+            }
+        }, cancellationToken);
+    }
+
     private void DrawDashboardLayout()
     {
         if (!lifestreamTravelService.IsAvailable)
@@ -248,12 +293,16 @@ public sealed class MarketBoardWindow : Window, IDisposable
         ImGui.TextUnformatted("Item Name");
         if (DrawProminentInput("##item-search", "Type an item name", ref itemSearchText, 100))
         {
-            itemSearchResults = itemSearchIndex.Search(itemSearchText, MaxSearchResults).ToList();
+            RequestItemSearch();
         }
 
         if (itemSearchIndex.IsLoading)
         {
             ImGui.TextDisabled("Building item index...");
+        }
+        else if (isSearchingItems)
+        {
+            ImGui.TextDisabled("Searching items...");
         }
 
         if (selectedItem != null)
@@ -276,7 +325,13 @@ public sealed class MarketBoardWindow : Window, IDisposable
             return;
         }
 
-        foreach (var entry in itemSearchResults.Take(8))
+        using var resultsChild = ImRaii.Child("umb-search-results", new Vector2(0f, SearchResultsHeight), false);
+        if (!resultsChild.Success)
+        {
+            return;
+        }
+
+        foreach (var entry in itemSearchResults)
         {
             var isSelected = selectedItem?.ItemId == entry.ItemId;
             if (ImGui.Selectable($"{entry.Name}##{entry.ItemId}", isSelected))
@@ -284,11 +339,6 @@ public sealed class MarketBoardWindow : Window, IDisposable
                 selectedItem = entry;
                 RequestListingsRefresh();
             }
-        }
-
-        if (itemSearchResults.Count > 8)
-        {
-            ImGui.TextDisabled("More matches are available. Keep typing to narrow them down.");
         }
     }
 
@@ -546,7 +596,6 @@ public sealed class MarketBoardWindow : Window, IDisposable
             return;
         }
 
-        listingHoverTooltipPosition = ImGui.GetWindowPos() + new Vector2(12f, 12f);
         var widths = BuildListingColumnWidths(ImGui.GetContentRegionAvail().X);
         DrawListingHeader(widths);
 
@@ -806,9 +855,8 @@ public sealed class MarketBoardWindow : Window, IDisposable
 
     private void DrawListingHoverTooltip(string text)
     {
-        ImGui.SetNextWindowPos(listingHoverTooltipPosition, ImGuiCond.Always);
         ImGui.BeginTooltip();
-        ImGui.PushTextWrapPos(listingHoverTooltipPosition.X + 420f);
+        ImGui.PushTextWrapPos(ImGui.GetFontSize() * 32f);
         ImGui.TextUnformatted(text);
         ImGui.PopTextWrapPos();
         ImGui.EndTooltip();
@@ -989,7 +1037,6 @@ public sealed class MarketBoardWindow : Window, IDisposable
 
         isLoadingListings = true;
         listingsError = null;
-        marketData = null;
         var requestVersion = Interlocked.Increment(ref listingsRequestVersion);
 
         var useDataCenterScope = plugin.Configuration.SelectedScopeKind == ScopeKind.DataCenter ||
@@ -998,6 +1045,9 @@ public sealed class MarketBoardWindow : Window, IDisposable
             ? plugin.Configuration.SelectedDataCenter
             : plugin.Configuration.SelectedWorldId.ToString();
         var selectedItemId = selectedItem.ItemId;
+        var highQualityOnly = plugin.Configuration.ShowHighQuality == plugin.Configuration.ShowNormalQuality
+            ? (bool?)null
+            : plugin.Configuration.ShowHighQuality;
 
         var scopeLabel = useDataCenterScope
             ? plugin.Configuration.SelectedScopeKind == ScopeKind.World && plugin.Configuration.SelectedWorldId == AllWorldsId
@@ -1005,11 +1055,21 @@ public sealed class MarketBoardWindow : Window, IDisposable
                 : plugin.Configuration.SelectedDataCenter
             : marketScopeCatalog.FindWorldName(plugin.Configuration.SelectedWorldId) ?? plugin.Configuration.SelectedWorldId.ToString();
 
+        if (universalisClient.TryGetCachedMarketData(selector, scopeLabel, selectedItemId, highQualityOnly, out var cachedMarketData) &&
+            cachedMarketData != null)
+        {
+            marketData = cachedMarketData;
+        }
+        else
+        {
+            marketData = null;
+        }
+
         _ = Task.Run(async () =>
         {
             try
             {
-                var loadedMarketData = await universalisClient.GetMarketDataAsync(selector, scopeLabel, selectedItemId, listingsCts.Token).ConfigureAwait(false);
+                var loadedMarketData = await universalisClient.GetMarketDataAsync(selector, scopeLabel, selectedItemId, highQualityOnly, listingsCts.Token).ConfigureAwait(false);
                 if (requestVersion == listingsRequestVersion)
                 {
                     marketData = loadedMarketData;

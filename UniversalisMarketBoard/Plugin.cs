@@ -113,7 +113,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
             {
                 Name = "Search in Market Board",
                 PrefixChar = 'U',
-                Priority = -1,
+                Priority = int.MaxValue,
                 OnClicked = _ => OpenItem(itemId),
             });
         }

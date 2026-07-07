@@ -22,7 +22,7 @@ public sealed class Configuration : IPluginConfiguration
     private static readonly ThemeColor DefaultHeaderTitleTextColor = ThemeColor.From(0.98f, 0.99f, 1f, 1f);
     private static readonly ThemeColor DefaultTableHeaderTextColor = ThemeColor.From(0.98f, 0.99f, 1f, 1f);
 
-    public int Version { get; set; } = 10;
+    public int Version { get; set; } = 12;
 
     public ScopeKind SelectedScopeKind { get; set; } = ScopeKind.DataCenter;
     public string SelectedDataCenter { get; set; } = "Aether";
@@ -241,9 +241,9 @@ public sealed class Configuration : IPluginConfiguration
             changed = true;
         }
 
-        if (Version < 10)
+        if (Version < 12)
         {
-            Version = 10;
+            Version = 12;
             changed = true;
         }
 

@@ -24,7 +24,6 @@ public sealed unsafe class Plugin : IDalamudPlugin
     [PluginService] internal static IContextMenu ContextMenu { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
-    [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
 
@@ -150,13 +149,6 @@ public sealed unsafe class Plugin : IDalamudPlugin
         }
 
         if (args.MenuType == ContextMenuType.Default &&
-            IsVendorContextAddon(args.AddonName) &&
-            TryGetHoveredItemId(out itemId))
-        {
-            return true;
-        }
-
-        if (args.MenuType == ContextMenuType.Default &&
             args.Target is MenuTargetDefault defaultTarget &&
             TryResolveDefaultTargetItemId(defaultTarget, out itemId))
         {
@@ -165,27 +157,6 @@ public sealed unsafe class Plugin : IDalamudPlugin
 
         itemId = 0;
         return false;
-    }
-
-    private static bool IsVendorContextAddon(string? addonName)
-    {
-        if (string.IsNullOrWhiteSpace(addonName))
-        {
-            return false;
-        }
-
-        return addonName.Contains("Shop", StringComparison.OrdinalIgnoreCase)
-            || addonName.Contains("Exchange", StringComparison.OrdinalIgnoreCase)
-            || addonName.Contains("Trade", StringComparison.OrdinalIgnoreCase)
-            || addonName.Contains("Store", StringComparison.OrdinalIgnoreCase)
-            || addonName.Contains("Collectables", StringComparison.OrdinalIgnoreCase)
-            || addonName.Contains("Inclusion", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool TryGetHoveredItemId(out uint itemId)
-    {
-        itemId = NormalizeContextItemId((uint)GameGui.HoveredItem);
-        return itemId != 0;
     }
 
     private bool TryResolveDefaultTargetItemId(MenuTargetDefault defaultTarget, out uint itemId)

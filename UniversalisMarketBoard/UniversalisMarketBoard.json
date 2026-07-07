@@ -2,7 +2,7 @@
   "Author": "Meghann",
   "Name": "Universal Market Board",
   "Punchline": "Search item prices by data centre or world.",
-  "Description": "Browse HQ and NQ market board listings, search any item, switch between world or data centre scopes, and sort prices from highest to lowest. Slash command: /umb. Dev command: /umbdev",
+  "Description": "Browse HQ and NQ market board listings, search any item, switch between world or data centre scopes, and sort prices from highest to lowest. Slash command: /umb",
   "ApplicableVersion": "any",
   "Tags": [
     "marketboard",

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.1.3</Version>
+    <Version>0.1.4</Version>
     <AssemblyName>UniversalisMarketBoard</AssemblyName>
     <RootNamespace>UniversalisMarketBoard</RootNamespace>
     <PackageProjectUrl>https://universalis.app/</PackageProjectUrl>
@@ -11,7 +11,7 @@
     <DevDeployDir>$(MSBuildProjectDirectory)\..\Deploy\</DevDeployDir>
   </PropertyGroup>
 
-  <Target Name="CopyDevPluginToStableLocation" AfterTargets="Build">
+  <Target Name="CopyDevPluginToStableLocation" AfterTargets="AfterBuild">
     <ItemGroup>
       <DevPluginSupportFiles Include="$(TargetDir)$(AssemblyName).json"
                              Condition="Exists('$(TargetDir)$(AssemblyName).json')" />

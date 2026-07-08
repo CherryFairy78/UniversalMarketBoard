@@ -89,12 +89,14 @@ public sealed class UniversalisClient
         var selector = Uri.EscapeDataString(scopeSelector);
         var query = $"entries=1{BuildHighQualityQuery(highQualityOnly)}";
         var response = await GetOptionalAsync<UniversalisMarketResponse>($"{selector}/{itemId}?{query}", cancellationToken).ConfigureAwait(false);
+        var isSingleWorldScope = uint.TryParse(scopeSelector, out _);
+        var fallbackWorldName = isSingleWorldScope ? scopeLabel : string.Empty;
 
         var marketData = new UniversalisMarketData
         {
             ScopeLabel = scopeLabel,
-            Listings = response?.Listings ?? [],
-            RecentHistory = response?.RecentHistory ?? [],
+            Listings = NormalizeListings(response?.Listings, fallbackWorldName),
+            RecentHistory = NormalizeRecentHistory(response?.RecentHistory, fallbackWorldName),
             ApproxDailySales = response?.ApproxDailySales ?? 0,
         };
 
@@ -180,6 +182,61 @@ public sealed class UniversalisClient
     private static string BuildMarketDataCacheKey(string scopeSelector, uint itemId, bool? highQualityOnly)
     {
         return $"{scopeSelector}|{itemId}|{(highQualityOnly.HasValue ? (highQualityOnly.Value ? "hq" : "nq") : "all")}";
+    }
+
+    private static List<MarketListing> NormalizeListings(List<MarketListing>? listings, string fallbackWorldName)
+    {
+        if (listings == null || listings.Count == 0)
+        {
+            return [];
+        }
+
+        if (string.IsNullOrWhiteSpace(fallbackWorldName))
+        {
+            return listings;
+        }
+
+        return listings
+            .Select(listing => string.IsNullOrWhiteSpace(listing.WorldName)
+                ? new MarketListing
+                {
+                    WorldName = fallbackWorldName,
+                    IsHighQuality = listing.IsHighQuality,
+                    PricePerUnit = listing.PricePerUnit,
+                    Quantity = listing.Quantity,
+                    Total = listing.Total,
+                    RetainerName = listing.RetainerName,
+                    LastReviewTime = listing.LastReviewTime,
+                }
+                : listing)
+            .ToList();
+    }
+
+    private static List<MarketSaleHistoryEntry> NormalizeRecentHistory(List<MarketSaleHistoryEntry>? recentHistory, string fallbackWorldName)
+    {
+        if (recentHistory == null || recentHistory.Count == 0)
+        {
+            return [];
+        }
+
+        if (string.IsNullOrWhiteSpace(fallbackWorldName))
+        {
+            return recentHistory;
+        }
+
+        return recentHistory
+            .Select(entry => string.IsNullOrWhiteSpace(entry.WorldName)
+                ? new MarketSaleHistoryEntry
+                {
+                    WorldName = fallbackWorldName,
+                    IsHighQuality = entry.IsHighQuality,
+                    PricePerUnit = entry.PricePerUnit,
+                    Quantity = entry.Quantity,
+                    Total = entry.Total,
+                    Timestamp = entry.Timestamp,
+                }
+                : entry)
+            .ToList();
     }
 
     private sealed record CachedMarketData(DateTime StoredAtUtc, UniversalisMarketData Data);

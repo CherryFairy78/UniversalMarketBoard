@@ -372,6 +372,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
         if (ImGui.RadioButton("Data Centre##scope", selectedScope == ScopeKind.DataCenter))
         {
             plugin.Configuration.SelectedScopeKind = ScopeKind.DataCenter;
+            plugin.Configuration.SelectedWorldId = AllWorldsId;
             plugin.Configuration.Save();
             RequestListingsRefresh();
         }
@@ -380,6 +381,10 @@ public sealed class MarketBoardWindow : Window, IDisposable
         if (ImGui.RadioButton("World##scope", selectedScope == ScopeKind.World))
         {
             plugin.Configuration.SelectedScopeKind = ScopeKind.World;
+            if (plugin.Configuration.SelectedWorldId == AllWorldsId)
+            {
+                plugin.Configuration.SelectedWorldId = GetPreferredWorldIdForSelectedDataCenter(marketScopeCatalog);
+            }
             plugin.Configuration.Save();
             RequestListingsRefresh();
         }
@@ -500,6 +505,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
         var allWorldsSelected = plugin.Configuration.SelectedWorldId == AllWorldsId;
         if (ImGui.Selectable($"All ({selectedDataCenter.Name})", allWorldsSelected))
         {
+            plugin.Configuration.SelectedScopeKind = ScopeKind.DataCenter;
             plugin.Configuration.SelectedWorldId = AllWorldsId;
             plugin.Configuration.Save();
             RequestListingsRefresh();
@@ -515,6 +521,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
             var isSelected = world.Id == plugin.Configuration.SelectedWorldId;
             if (ImGui.Selectable(world.Name, isSelected))
             {
+                plugin.Configuration.SelectedScopeKind = ScopeKind.World;
                 plugin.Configuration.SelectedWorldId = world.Id;
                 plugin.Configuration.Save();
                 RequestListingsRefresh();
@@ -1039,8 +1046,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
         listingsError = null;
         var requestVersion = Interlocked.Increment(ref listingsRequestVersion);
 
-        var useDataCenterScope = plugin.Configuration.SelectedScopeKind == ScopeKind.DataCenter ||
-            plugin.Configuration.SelectedWorldId == AllWorldsId;
+        var useDataCenterScope = plugin.Configuration.SelectedWorldId == AllWorldsId;
         var selector = useDataCenterScope
             ? plugin.Configuration.SelectedDataCenter
             : plugin.Configuration.SelectedWorldId.ToString();
@@ -1098,6 +1104,30 @@ public sealed class MarketBoardWindow : Window, IDisposable
                 }
             }
         }, listingsCts.Token);
+    }
+
+    private uint GetPreferredWorldIdForSelectedDataCenter(MarketScopeCatalog catalog)
+    {
+        var selectedDataCenter = catalog.DataCenters.FirstOrDefault(dc => dc.Name == plugin.Configuration.SelectedDataCenter)
+            ?? catalog.DataCenters.FirstOrDefault();
+        if (selectedDataCenter == null || selectedDataCenter.Worlds.Count == 0)
+        {
+            return AllWorldsId;
+        }
+
+        var currentWorldId = Plugin.PlayerState.CurrentWorld.RowId;
+        if (selectedDataCenter.Worlds.Any(world => world.Id == currentWorldId))
+        {
+            return currentWorldId;
+        }
+
+        var homeWorldId = Plugin.PlayerState.HomeWorld.RowId;
+        if (selectedDataCenter.Worlds.Any(world => world.Id == homeWorldId))
+        {
+            return homeWorldId;
+        }
+
+        return selectedDataCenter.Worlds[0].Id;
     }
 
     private sealed class StyleColorScope(int count) : IDisposable

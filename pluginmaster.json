@@ -3,12 +3,13 @@
     "Author": "Meghann",
     "Name": "Universal Market Board",
     "InternalName": "UniversalisMarketBoard",
-    "AssemblyVersion": "0.1.8.0",
+    "AssemblyVersion": "0.1.9.0",
     "Description": "Browse HQ and NQ market board listings, search any item, switch between world or data centre scopes, and sort prices from highest to lowest. Slash command: /umb",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "Punchline": "Search item prices by data centre or world.",
     "RepoUrl": "https://github.com/CherryFairy78/UniversalMarketBoard",
+    "IconUrl": "https://raw.githubusercontent.com/CherryFairy78/UniversalMarketBoard/main/assets/icon.png",
     "Tags": [
       "marketboard",
       "universalis",
@@ -17,8 +18,8 @@
     ],
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/CherryFairy78/UniversalMarketBoard/releases/download/v0.1.8/UniversalMarketBoard.zip",
-    "DownloadLinkUpdate": "https://github.com/CherryFairy78/UniversalMarketBoard/releases/download/v0.1.8/UniversalMarketBoard.zip",
-    "LastUpdate": "1783458126"
+    "DownloadLinkInstall": "https://github.com/CherryFairy78/UniversalMarketBoard/releases/download/v0.1.9/UniversalMarketBoard.zip",
+    "DownloadLinkUpdate": "https://github.com/CherryFairy78/UniversalMarketBoard/releases/download/v0.1.9/UniversalMarketBoard.zip",
+    "LastUpdate": "1783503448"
   }
 ]

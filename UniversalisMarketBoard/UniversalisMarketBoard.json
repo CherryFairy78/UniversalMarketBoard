@@ -3,6 +3,7 @@
   "Name": "Universal Market Board",
   "Punchline": "Search item prices by data centre or world.",
   "Description": "Browse HQ and NQ market board listings, search any item, switch between world or data centre scopes, and sort prices from highest to lowest. Slash command: /umb",
+  "IconUrl": "https://raw.githubusercontent.com/CherryFairy78/UniversalMarketBoard/main/assets/icon.png",
   "ApplicableVersion": "any",
   "Tags": [
     "marketboard",

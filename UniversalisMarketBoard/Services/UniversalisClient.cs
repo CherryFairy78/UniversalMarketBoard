@@ -45,19 +45,42 @@ public sealed class UniversalisClient
             .Select(dataCenter => new DataCenterOption(
                 dataCenter.Name,
                 dataCenter.Region,
+                dataCenter.Name,
+                false,
                 dataCenter.WorldIds
                     .Where(worldLookup.ContainsKey)
                     .Select(worldId => new WorldOption(worldId, worldLookup[worldId].Name))
                     .OrderBy(world => world.Name)
                     .ToList()))
             .Where(dataCenter => dataCenter.Worlds.Count > 0)
+            .ToList();
+
+        var aggregateScopes = dataCenters
+            .GroupBy(dataCenter => dataCenter.Region)
+            .Where(group => ShouldAddAggregateScope(group.Key, group.Count()))
+            .Select(group => new DataCenterOption(
+                group.Key,
+                group.Key,
+                group.Key,
+                true,
+                group
+                    .SelectMany(dataCenter => dataCenter.Worlds)
+                    .GroupBy(world => world.Id)
+                    .Select(groupedWorld => groupedWorld.First())
+                    .OrderBy(world => world.Name)
+                    .ToList()))
+            .ToList();
+
+        var availableScopes = aggregateScopes
+            .Concat(dataCenters)
             .OrderBy(dataCenter => dataCenter.Region)
+            .ThenBy(dataCenter => dataCenter.IsRegionAggregate ? 0 : 1)
             .ThenBy(dataCenter => dataCenter.Name)
             .ToList();
 
         return new MarketScopeCatalog
         {
-            DataCenters = dataCenters,
+            DataCenters = availableScopes,
         };
     }
 
@@ -184,6 +207,16 @@ public sealed class UniversalisClient
         return $"{scopeSelector}|{itemId}|{(highQualityOnly.HasValue ? (highQualityOnly.Value ? "hq" : "nq") : "all")}";
     }
 
+    private static bool ShouldAddAggregateScope(string region, int dataCenterCount)
+    {
+        if (dataCenterCount < 2)
+        {
+            return false;
+        }
+
+        return region is "Japan" or "North-America" or "Europe";
+    }
+
     private static List<MarketListing> NormalizeListings(List<MarketListing>? listings, string fallbackWorldName)
     {
         if (listings == null || listings.Count == 0)
@@ -205,6 +238,7 @@ public sealed class UniversalisClient
                     PricePerUnit = listing.PricePerUnit,
                     Quantity = listing.Quantity,
                     Total = listing.Total,
+                    Tax = listing.Tax,
                     RetainerName = listing.RetainerName,
                     LastReviewTime = listing.LastReviewTime,
                 }

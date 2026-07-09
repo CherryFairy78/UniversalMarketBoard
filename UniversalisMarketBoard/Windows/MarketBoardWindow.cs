@@ -429,7 +429,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
 
     private void DrawDataCenterCombo(MarketScopeCatalog catalog)
     {
-        var selectedLabel = catalog.DataCenters.FirstOrDefault(dc => dc.Name == plugin.Configuration.SelectedDataCenter)?.DisplayName
+        var selectedLabel = GetSelectedDataCenterOption(catalog)?.DisplayName
             ?? plugin.Configuration.SelectedDataCenter;
 
         ImGui.TextUnformatted("Data Centre");
@@ -441,10 +441,10 @@ public sealed class MarketBoardWindow : Window, IDisposable
 
         foreach (var dataCenter in catalog.DataCenters)
         {
-            var isSelected = dataCenter.Name == plugin.Configuration.SelectedDataCenter;
+            var isSelected = dataCenter.Selector == plugin.Configuration.SelectedDataCenter;
             if (ImGui.Selectable(dataCenter.DisplayName, isSelected))
             {
-                plugin.Configuration.SelectedDataCenter = dataCenter.Name;
+                plugin.Configuration.SelectedDataCenter = dataCenter.Selector;
                 if (plugin.Configuration.SelectedWorldId == 0 ||
                     dataCenter.Worlds.All(world => world.Id != plugin.Configuration.SelectedWorldId))
                 {
@@ -466,8 +466,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
 
     private void DrawWorldCombo(MarketScopeCatalog catalog)
     {
-        var selectedDataCenter = catalog.DataCenters.FirstOrDefault(dc => dc.Name == plugin.Configuration.SelectedDataCenter)
-            ?? catalog.DataCenters.FirstOrDefault();
+        var selectedDataCenter = GetSelectedDataCenterOption(catalog);
         if (selectedDataCenter == null)
         {
             return;
@@ -475,7 +474,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
 
         var selectedWorld = selectedDataCenter.Worlds.FirstOrDefault(world => world.Id == plugin.Configuration.SelectedWorldId);
         var selectedWorldLabel = plugin.Configuration.SelectedWorldId == AllWorldsId
-            ? $"All ({selectedDataCenter.Name})"
+            ? selectedDataCenter.AllWorldsLabel
             : selectedWorld?.Name;
         if (selectedWorldLabel == null)
         {
@@ -503,7 +502,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
         }
 
         var allWorldsSelected = plugin.Configuration.SelectedWorldId == AllWorldsId;
-        if (ImGui.Selectable($"All ({selectedDataCenter.Name})", allWorldsSelected))
+        if (ImGui.Selectable(selectedDataCenter.AllWorldsLabel, allWorldsSelected))
         {
             plugin.Configuration.SelectedScopeKind = ScopeKind.DataCenter;
             plugin.Configuration.SelectedWorldId = AllWorldsId;
@@ -800,7 +799,14 @@ public sealed class MarketBoardWindow : Window, IDisposable
         ImGui.SameLine(0f, ListingCellSpacing);
         DrawTextCell($"qty-{rowKey}", $"{listing.Quantity:N0}", widths[3], ListingCellHeight, bodyColor, textColor);
         ImGui.SameLine(0f, ListingCellSpacing);
-        DrawTextCell($"total-{rowKey}", $"{listing.Total:N0}", widths[4], ListingCellHeight, bodyColor, textColor);
+        DrawTextCell(
+            $"total-{rowKey}",
+            $"{listing.TotalWithTax:N0}",
+            widths[4],
+            ListingCellHeight,
+            bodyColor,
+            textColor,
+            hoverText: $"Base total: {listing.Total:N0} gil\nTax: {listing.Tax:N0} gil");
         ImGui.SameLine(0f, ListingCellSpacing);
         DrawTextCell($"retainer-{rowKey}", string.IsNullOrWhiteSpace(listing.RetainerName) ? "-" : listing.RetainerName, widths[5], ListingCellHeight, bodyColor, textColor, true);
         ImGui.SameLine(0f, ListingCellSpacing);
@@ -837,7 +843,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
                region.Contains("america", StringComparison.OrdinalIgnoreCase);
     }
 
-    private void DrawTextCell(string id, string text, float width, float height, Vector4 backgroundColor, Vector4 foregroundColor, bool leftAlign = false)
+    private void DrawTextCell(string id, string text, float width, float height, Vector4 backgroundColor, Vector4 foregroundColor, bool leftAlign = false, string? hoverText = null)
     {
         var displayText = FitText(text, width - 24f);
         var position = ImGui.GetCursorScreenPos();
@@ -853,6 +859,12 @@ public sealed class MarketBoardWindow : Window, IDisposable
             ? new Vector2(position.X + 14f, position.Y + ((height - textSize.Y) / 2f))
             : new Vector2(position.X + Math.Max(14f, (width - textSize.X) / 2f), position.Y + ((height - textSize.Y) / 2f));
         drawList.AddText(textPosition, ImGui.GetColorU32(foregroundColor), displayText);
+
+        if (hovered && !string.IsNullOrWhiteSpace(hoverText))
+        {
+            DrawListingHoverTooltip(hoverText);
+            return;
+        }
 
         if (hovered && displayText != text)
         {
@@ -998,7 +1010,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
             return;
         }
 
-        var selectedDataCenter = marketScopeCatalog.DataCenters.FirstOrDefault(dc => dc.Name == plugin.Configuration.SelectedDataCenter);
+        var selectedDataCenter = GetSelectedDataCenterOption(marketScopeCatalog);
         if (selectedDataCenter != null)
         {
             if (plugin.Configuration.SelectedWorldId != AllWorldsId &&
@@ -1026,7 +1038,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
         }
 
         var dataCenter = marketScopeCatalog.DataCenters[0];
-        plugin.Configuration.SelectedDataCenter = dataCenter.Name;
+        plugin.Configuration.SelectedDataCenter = dataCenter.Selector;
         plugin.Configuration.SelectedWorldId = AllWorldsId;
         plugin.Configuration.Save();
     }
@@ -1045,10 +1057,11 @@ public sealed class MarketBoardWindow : Window, IDisposable
         isLoadingListings = true;
         listingsError = null;
         var requestVersion = Interlocked.Increment(ref listingsRequestVersion);
+        var selectedDataCenter = GetSelectedDataCenterOption(marketScopeCatalog);
 
         var useDataCenterScope = plugin.Configuration.SelectedWorldId == AllWorldsId;
         var selector = useDataCenterScope
-            ? plugin.Configuration.SelectedDataCenter
+            ? selectedDataCenter?.Selector ?? plugin.Configuration.SelectedDataCenter
             : plugin.Configuration.SelectedWorldId.ToString();
         var selectedItemId = selectedItem.ItemId;
         var highQualityOnly = plugin.Configuration.ShowHighQuality == plugin.Configuration.ShowNormalQuality
@@ -1057,8 +1070,8 @@ public sealed class MarketBoardWindow : Window, IDisposable
 
         var scopeLabel = useDataCenterScope
             ? plugin.Configuration.SelectedScopeKind == ScopeKind.World && plugin.Configuration.SelectedWorldId == AllWorldsId
-                ? $"{plugin.Configuration.SelectedDataCenter} (All Worlds)"
-                : plugin.Configuration.SelectedDataCenter
+                ? selectedDataCenter?.AllWorldsLabel ?? plugin.Configuration.SelectedDataCenter
+                : selectedDataCenter?.ScopeLabel ?? plugin.Configuration.SelectedDataCenter
             : marketScopeCatalog.FindWorldName(plugin.Configuration.SelectedWorldId) ?? plugin.Configuration.SelectedWorldId.ToString();
 
         if (universalisClient.TryGetCachedMarketData(selector, scopeLabel, selectedItemId, highQualityOnly, out var cachedMarketData) &&
@@ -1108,8 +1121,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
 
     private uint GetPreferredWorldIdForSelectedDataCenter(MarketScopeCatalog catalog)
     {
-        var selectedDataCenter = catalog.DataCenters.FirstOrDefault(dc => dc.Name == plugin.Configuration.SelectedDataCenter)
-            ?? catalog.DataCenters.FirstOrDefault();
+        var selectedDataCenter = GetSelectedDataCenterOption(catalog);
         if (selectedDataCenter == null || selectedDataCenter.Worlds.Count == 0)
         {
             return AllWorldsId;
@@ -1128,6 +1140,12 @@ public sealed class MarketBoardWindow : Window, IDisposable
         }
 
         return selectedDataCenter.Worlds[0].Id;
+    }
+
+    private DataCenterOption? GetSelectedDataCenterOption(MarketScopeCatalog catalog)
+    {
+        return catalog.FindScope(plugin.Configuration.SelectedDataCenter)
+            ?? catalog.DataCenters.FirstOrDefault();
     }
 
     private sealed class StyleColorScope(int count) : IDisposable

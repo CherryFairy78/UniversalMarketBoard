@@ -32,6 +32,7 @@ Universal Market Board started as a lightweight Universalis browser for Dalamud 
 - `v0.1.10` fixed world-specific searches that were incorrectly returning wider data centre results.
 - `v0.1.11` introduced combined region scopes for Japan, North America, and Europe.
 - `v0.1.11` also updated totals to include market tax and added a hover breakdown for tax and base total.
+- `v0.1.12` re-published the same latest feature set with corrected release packaging after the `v0.1.11` asset version mismatch blocked updates.
 
 ## Design Direction
 

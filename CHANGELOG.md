@@ -2,6 +2,9 @@
 
 All notable changes to Universal Market Board will be documented in this file.
 
+## [0.1.12] - 2026-07-09
+- Re-published the latest plugin package with corrected release metadata after the `v0.1.11` asset was distributed with the wrong embedded version.
+
 ## [0.1.11] - 2026-07-09
 - Added combined region scopes for Japan, North America, and Europe.
 - Updated the world picker to show all worlds inside those combined scopes.

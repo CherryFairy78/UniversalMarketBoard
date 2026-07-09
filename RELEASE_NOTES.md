@@ -4,12 +4,15 @@ This file collects the published release notes in one place for quick reference.
 
 ## Latest
 
+### v0.1.12
+- Re-published the latest plugin package with corrected release metadata after the `v0.1.11` asset was distributed with the wrong embedded version.
+
+## Previous
+
 ### v0.1.11
 - Added combined region scopes for Japan, North America, and Europe.
 - Updated the world picker to show all worlds inside those combined scopes.
 - Changed the `Total` column to include market tax and added a hover breakdown for base total and tax.
-
-## Release Archive
 
 ### v0.1.10
 - Fixed world-specific searches incorrectly showing data centre-wide listings.

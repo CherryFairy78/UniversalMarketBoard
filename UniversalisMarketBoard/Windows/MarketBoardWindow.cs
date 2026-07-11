@@ -76,12 +76,9 @@ public sealed class MarketBoardWindow : Window, IDisposable
 
     public void Dispose()
     {
-        bootstrapCts?.Cancel();
-        bootstrapCts?.Dispose();
-        itemSearchCts?.Cancel();
-        itemSearchCts?.Dispose();
-        listingsCts?.Cancel();
-        listingsCts?.Dispose();
+        CancelAndDispose(ref bootstrapCts);
+        CancelAndDispose(ref itemSearchCts);
+        CancelAndDispose(ref listingsCts);
     }
 
     public override void Draw()
@@ -1169,6 +1166,32 @@ public sealed class MarketBoardWindow : Window, IDisposable
         ImGui.PushStyleColor(ImGuiCol.FrameBg, Tint(plugin.Configuration.CardBackgroundColor.ToVector4(), 1.14f, 1f));
         ImGui.PushStyleColor(ImGuiCol.PopupBg, Tint(plugin.Configuration.CardBackgroundColor.ToVector4(), 1.1f, 1f));
         return new StyleColorScope(2);
+    }
+
+    private static void CancelAndDispose(ref CancellationTokenSource? source)
+    {
+        var localSource = source;
+        source = null;
+        if (localSource == null)
+        {
+            return;
+        }
+
+        try
+        {
+            localSource.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
+        try
+        {
+            localSource.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
     }
 
     private sealed class StyleColorScope(int count) : IDisposable

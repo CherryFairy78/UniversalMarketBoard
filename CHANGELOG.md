@@ -2,6 +2,10 @@
 
 All notable changes to Universal Market Board will be documented in this file.
 
+## [0.1.14] - 2026-07-12
+- Fixed the distributed plugin manifest so the packaged zip version matches the repo version.
+- Hardened shutdown and update cleanup to avoid disposed-token errors during unload.
+
 ## [0.1.13] - 2026-07-12
 - Removed the Market Flippers feature from the live plugin to keep the main market board focused and stable.
 - Fixed an item-search cancellation crash caused by disposed search tokens.

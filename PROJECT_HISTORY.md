@@ -9,6 +9,7 @@ Universal Market Board started as a lightweight Universalis browser for Dalamud 
 ### 2026-07-12: Stability cleanup
 - `v0.1.13` removed the experimental Market Flippers window from the live build.
 - `v0.1.13` also fixed the item-search cancellation crash and made manual refreshes skip cached listing snapshots.
+- `v0.1.14` fixed the shipped plugin manifest version and tightened unload cleanup for smoother updates.
 
 ### 2026-07-06: First public release
 - `v0.1.0` launched the core plugin.

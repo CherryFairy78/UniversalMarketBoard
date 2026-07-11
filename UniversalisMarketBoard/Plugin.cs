@@ -321,7 +321,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
         return $"v{version.Major}.{version.Minor}.{build}";
     }
 
-    private void OpenItem(uint itemId)
+    public void OpenItem(uint itemId)
     {
         MainWindow.OpenItem(itemId);
     }

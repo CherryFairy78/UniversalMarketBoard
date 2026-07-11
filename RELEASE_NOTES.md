@@ -4,10 +4,15 @@ This file collects the published release notes in one place for quick reference.
 
 ## Latest
 
-### v0.1.12
-- Re-published the latest plugin package with corrected release metadata after the `v0.1.11` asset was distributed with the wrong embedded version.
+### v0.1.13
+- Removed Market Flippers from the live plugin to keep the core market board experience stable.
+- Fixed the item-search disposed-token crash.
+- Updated `Refresh Prices` so it forces a fresh Universalis fetch instead of reusing cached listing data.
 
 ## Previous
+
+### v0.1.12
+- Re-published the latest plugin package with corrected release metadata after the `v0.1.11` asset was distributed with the wrong embedded version.
 
 ### v0.1.11
 - Added combined region scopes for Japan, North America, and Europe.

@@ -221,8 +221,10 @@ public sealed class MarketBoardWindow : Window, IDisposable
 
     private void RequestItemSearch()
     {
-        itemSearchCts?.Cancel();
-        itemSearchCts?.Dispose();
+        var previousCts = itemSearchCts;
+        itemSearchCts = null;
+        previousCts?.Cancel();
+        previousCts?.Dispose();
 
         if (string.IsNullOrWhiteSpace(itemSearchText))
         {
@@ -231,8 +233,9 @@ public sealed class MarketBoardWindow : Window, IDisposable
             return;
         }
 
-        itemSearchCts = new CancellationTokenSource();
-        var cancellationToken = itemSearchCts.Token;
+        var localItemSearchCts = new CancellationTokenSource();
+        itemSearchCts = localItemSearchCts;
+        var cancellationToken = localItemSearchCts.Token;
         var searchText = itemSearchText;
         var requestVersion = Interlocked.Increment(ref itemSearchRequestVersion);
         isSearchingItems = true;
@@ -242,7 +245,9 @@ public sealed class MarketBoardWindow : Window, IDisposable
             try
             {
                 var results = itemSearchIndex.Search(searchText, MaxSearchResults).ToList();
-                if (cancellationToken.IsCancellationRequested || requestVersion != itemSearchRequestVersion)
+                if (cancellationToken.IsCancellationRequested ||
+                    requestVersion != itemSearchRequestVersion ||
+                    itemSearchCts != localItemSearchCts)
                 {
                     return;
                 }
@@ -251,12 +256,12 @@ public sealed class MarketBoardWindow : Window, IDisposable
             }
             finally
             {
-                if (requestVersion == itemSearchRequestVersion)
+                if (requestVersion == itemSearchRequestVersion && itemSearchCts == localItemSearchCts)
                 {
                     isSearchingItems = false;
                 }
             }
-        }, cancellationToken);
+        });
     }
 
     private void DrawDashboardLayout()
@@ -415,9 +420,13 @@ public sealed class MarketBoardWindow : Window, IDisposable
             plugin.Configuration.Save();
         }
 
-        if (DrawStyledButton("Refresh Prices", new Vector2(-110f, 0f)))
+        var availableButtonWidth = ImGui.GetContentRegionAvail().X;
+        const float appearanceButtonWidth = 112f;
+        var refreshButtonWidth = Math.Max(150f, availableButtonWidth - appearanceButtonWidth - ImGui.GetStyle().ItemSpacing.X);
+
+        if (DrawStyledButton("Refresh Prices", new Vector2(refreshButtonWidth, 0f)))
         {
-            RequestListingsRefresh();
+            RequestListingsRefresh(true);
         }
 
         ImGui.SameLine();
@@ -434,6 +443,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
 
         ImGui.TextUnformatted("Data Centre");
         ImGui.SetNextItemWidth(-1f);
+        using var comboStyles = PushComboStyles();
         if (!ImGui.BeginCombo("##data-centre", selectedLabel))
         {
             return;
@@ -496,6 +506,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
 
         ImGui.TextUnformatted("World");
         ImGui.SetNextItemWidth(-1f);
+        using var comboStyles = PushComboStyles();
         if (!ImGui.BeginCombo("##world", selectedWorldLabel))
         {
             return;
@@ -1043,7 +1054,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
         plugin.Configuration.Save();
     }
 
-    private void RequestListingsRefresh()
+    private void RequestListingsRefresh(bool forceRefresh = false)
     {
         if (selectedItem == null || marketScopeCatalog == null)
         {
@@ -1074,7 +1085,12 @@ public sealed class MarketBoardWindow : Window, IDisposable
                 : selectedDataCenter?.ScopeLabel ?? plugin.Configuration.SelectedDataCenter
             : marketScopeCatalog.FindWorldName(plugin.Configuration.SelectedWorldId) ?? plugin.Configuration.SelectedWorldId.ToString();
 
-        if (universalisClient.TryGetCachedMarketData(selector, scopeLabel, selectedItemId, highQualityOnly, out var cachedMarketData) &&
+        if (forceRefresh)
+        {
+            universalisClient.InvalidateMarketData(selector, selectedItemId, highQualityOnly, null);
+            marketData = null;
+        }
+        else if (universalisClient.TryGetCachedMarketData(selector, scopeLabel, selectedItemId, highQualityOnly, null, out var cachedMarketData) &&
             cachedMarketData != null)
         {
             marketData = cachedMarketData;
@@ -1088,7 +1104,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
         {
             try
             {
-                var loadedMarketData = await universalisClient.GetMarketDataAsync(selector, scopeLabel, selectedItemId, highQualityOnly, listingsCts.Token).ConfigureAwait(false);
+                var loadedMarketData = await universalisClient.GetMarketDataAsync(selector, scopeLabel, selectedItemId, highQualityOnly, null, listingsCts.Token).ConfigureAwait(false);
                 if (requestVersion == listingsRequestVersion)
                 {
                     marketData = loadedMarketData;
@@ -1146,6 +1162,13 @@ public sealed class MarketBoardWindow : Window, IDisposable
     {
         return catalog.FindScope(plugin.Configuration.SelectedDataCenter)
             ?? catalog.DataCenters.FirstOrDefault();
+    }
+
+    private StyleColorScope PushComboStyles()
+    {
+        ImGui.PushStyleColor(ImGuiCol.FrameBg, Tint(plugin.Configuration.CardBackgroundColor.ToVector4(), 1.14f, 1f));
+        ImGui.PushStyleColor(ImGuiCol.PopupBg, Tint(plugin.Configuration.CardBackgroundColor.ToVector4(), 1.1f, 1f));
+        return new StyleColorScope(2);
     }
 
     private sealed class StyleColorScope(int count) : IDisposable

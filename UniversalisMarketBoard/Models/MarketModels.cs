@@ -11,7 +11,10 @@ public enum ScopeKind
     World,
 }
 
-public sealed record ItemSearchEntry(uint ItemId, string Name, string SearchKey);
+public sealed record ItemSearchEntry(
+    uint ItemId,
+    string Name,
+    string SearchKey);
 
 public sealed record WorldOption(uint Id, string Name);
 
@@ -64,9 +67,17 @@ public sealed class UniversalisMarketData
     public required List<MarketListing> Listings { get; init; }
     public required List<MarketSaleHistoryEntry> RecentHistory { get; init; }
     public float ApproxDailySales { get; init; }
+    public float ApproxDailySalesNq { get; init; }
+    public float ApproxDailySalesHq { get; init; }
     public int MinPrice => Listings.Count == 0 ? 0 : Listings.Min(listing => listing.PricePerUnit);
     public int MaxPrice => Listings.Count == 0 ? 0 : Listings.Max(listing => listing.PricePerUnit);
     public MarketSaleHistoryEntry? LastSale => RecentHistory.OrderByDescending(entry => entry.Timestamp).FirstOrDefault();
+
+    public float GetDailySales(bool highQuality)
+    {
+        var qualityVelocity = highQuality ? ApproxDailySalesHq : ApproxDailySalesNq;
+        return qualityVelocity > 0 ? qualityVelocity : ApproxDailySales;
+    }
 }
 
 public sealed class MarketListing
@@ -112,6 +123,18 @@ public sealed class UniversalisMarketResponse
 
     [JsonPropertyName("regularSaleVelocity")]
     public float ApproxDailySales { get; init; }
+
+    [JsonPropertyName("nqSaleVelocity")]
+    public float ApproxDailySalesNq { get; init; }
+
+    [JsonPropertyName("hqSaleVelocity")]
+    public float ApproxDailySalesHq { get; init; }
+}
+
+public sealed class UniversalisBatchMarketResponse
+{
+    [JsonPropertyName("items")]
+    public Dictionary<string, UniversalisMarketResponse> Items { get; init; } = [];
 }
 
 public sealed class MarketSaleHistoryEntry

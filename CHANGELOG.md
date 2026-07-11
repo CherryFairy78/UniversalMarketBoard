@@ -2,6 +2,11 @@
 
 All notable changes to Universal Market Board will be documented in this file.
 
+## [0.1.13] - 2026-07-12
+- Removed the Market Flippers feature from the live plugin to keep the main market board focused and stable.
+- Fixed an item-search cancellation crash caused by disposed search tokens.
+- Made `Refresh Prices` bypass cached listing data so manual refreshes pull a fresh Universalis snapshot.
+
 ## [0.1.12] - 2026-07-09
 - Re-published the latest plugin package with corrected release metadata after the `v0.1.11` asset was distributed with the wrong embedded version.
 

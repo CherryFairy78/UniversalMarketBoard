@@ -84,9 +84,9 @@ public sealed class UniversalisClient
         };
     }
 
-    public bool TryGetCachedMarketData(string scopeSelector, string scopeLabel, uint itemId, bool? highQualityOnly, out UniversalisMarketData? marketData)
+    public bool TryGetCachedMarketData(string scopeSelector, string scopeLabel, uint itemId, bool? highQualityOnly, int? entriesLimit, out UniversalisMarketData? marketData)
     {
-        var cacheKey = BuildMarketDataCacheKey(scopeSelector, itemId, highQualityOnly);
+        var cacheKey = BuildMarketDataCacheKey(scopeSelector, itemId, highQualityOnly, entriesLimit);
         lock (CacheLock)
         {
             if (MarketDataCache.TryGetValue(cacheKey, out var cached) &&
@@ -101,17 +101,26 @@ public sealed class UniversalisClient
         return false;
     }
 
-    public async Task<UniversalisMarketData> GetMarketDataAsync(string scopeSelector, string scopeLabel, uint itemId, bool? highQualityOnly, CancellationToken cancellationToken)
+    public void InvalidateMarketData(string scopeSelector, uint itemId, bool? highQualityOnly, int? entriesLimit)
     {
-        if (TryGetCachedMarketData(scopeSelector, scopeLabel, itemId, highQualityOnly, out var cachedMarketData) &&
+        var cacheKey = BuildMarketDataCacheKey(scopeSelector, itemId, highQualityOnly, entriesLimit);
+        lock (CacheLock)
+        {
+            MarketDataCache.Remove(cacheKey);
+        }
+    }
+
+    public async Task<UniversalisMarketData> GetMarketDataAsync(string scopeSelector, string scopeLabel, uint itemId, bool? highQualityOnly, int? entriesLimit, CancellationToken cancellationToken)
+    {
+        if (TryGetCachedMarketData(scopeSelector, scopeLabel, itemId, highQualityOnly, entriesLimit, out var cachedMarketData) &&
             cachedMarketData != null)
         {
             return cachedMarketData;
         }
 
         var selector = Uri.EscapeDataString(scopeSelector);
-        var query = $"entries=1{BuildHighQualityQuery(highQualityOnly)}";
-        var response = await GetOptionalAsync<UniversalisMarketResponse>($"{selector}/{itemId}?{query}", cancellationToken).ConfigureAwait(false);
+        var query = BuildMarketDataQuery(highQualityOnly, entriesLimit);
+        var response = await GetOptionalAsync<UniversalisMarketResponse>($"{selector}/{itemId}{query}", cancellationToken).ConfigureAwait(false);
         var isSingleWorldScope = uint.TryParse(scopeSelector, out _);
         var fallbackWorldName = isSingleWorldScope ? scopeLabel : string.Empty;
 
@@ -121,9 +130,11 @@ public sealed class UniversalisClient
             Listings = NormalizeListings(response?.Listings, fallbackWorldName),
             RecentHistory = NormalizeRecentHistory(response?.RecentHistory, fallbackWorldName),
             ApproxDailySales = response?.ApproxDailySales ?? 0,
+            ApproxDailySalesNq = response?.ApproxDailySalesNq ?? 0,
+            ApproxDailySalesHq = response?.ApproxDailySalesHq ?? 0,
         };
 
-        var cacheKey = BuildMarketDataCacheKey(scopeSelector, itemId, highQualityOnly);
+        var cacheKey = BuildMarketDataCacheKey(scopeSelector, itemId, highQualityOnly, entriesLimit);
         lock (CacheLock)
         {
             MarketDataCache[cacheKey] = new CachedMarketData(DateTime.UtcNow, marketData);
@@ -192,19 +203,42 @@ public sealed class UniversalisClient
             or HttpStatusCode.GatewayTimeout;
     }
 
-    private static string BuildHighQualityQuery(bool? highQualityOnly)
+    private static string BuildMarketDataQuery(bool? highQualityOnly, int? entriesLimit)
     {
-        if (highQualityOnly == null)
+        var queryParts = new List<string>(2);
+        if (entriesLimit.HasValue)
         {
-            return string.Empty;
+            queryParts.Add($"entries={entriesLimit.Value}");
         }
 
-        return $"&hq={(highQualityOnly.Value ? "true" : "false")}";
+        if (highQualityOnly.HasValue)
+        {
+            queryParts.Add($"hq={(highQualityOnly.Value ? "true" : "false")}");
+        }
+
+        return queryParts.Count == 0
+            ? string.Empty
+            : $"?{string.Join("&", queryParts)}";
     }
 
-    private static string BuildMarketDataCacheKey(string scopeSelector, uint itemId, bool? highQualityOnly)
+    private static string BuildMarketDataCacheKey(string scopeSelector, uint itemId, bool? highQualityOnly, int? entriesLimit)
     {
-        return $"{scopeSelector}|{itemId}|{(highQualityOnly.HasValue ? (highQualityOnly.Value ? "hq" : "nq") : "all")}";
+        var qualityKey = highQualityOnly.HasValue ? (highQualityOnly.Value ? "hq" : "nq") : "all";
+        var entriesKey = entriesLimit.HasValue ? $"entries-{entriesLimit.Value}" : "entries-full";
+        return $"{scopeSelector}|{itemId}|{qualityKey}|{entriesKey}";
+    }
+
+    private static UniversalisMarketData BuildMarketData(string scopeLabel, UniversalisMarketResponse? response, string fallbackWorldName)
+    {
+        return new UniversalisMarketData
+        {
+            ScopeLabel = scopeLabel,
+            Listings = NormalizeListings(response?.Listings, fallbackWorldName),
+            RecentHistory = NormalizeRecentHistory(response?.RecentHistory, fallbackWorldName),
+            ApproxDailySales = response?.ApproxDailySales ?? 0,
+            ApproxDailySalesNq = response?.ApproxDailySalesNq ?? 0,
+            ApproxDailySalesHq = response?.ApproxDailySalesHq ?? 0,
+        };
     }
 
     private static bool ShouldAddAggregateScope(string region, int dataCenterCount)

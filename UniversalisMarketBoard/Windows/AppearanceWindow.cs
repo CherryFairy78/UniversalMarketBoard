@@ -2,23 +2,25 @@ using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
+using Dalamud.Utility;
 
 namespace UniversalisMarketBoard.Windows;
 
 public sealed class AppearanceWindow : Window, IDisposable
 {
     private const float ColorEditorWidth = 255f;
+    private const string LifestreamGithubUrl = "https://github.com/NightmareXIV/Lifestream";
 
     private readonly Plugin plugin;
+    private SettingsPanel selectedPanel;
 
     public AppearanceWindow(Plugin plugin)
-        : base("Universal Market Board Appearance###UniversalisMarketBoardAppearance")
+        : base("Universal Market Board Settings###UniversalisMarketBoardSettings")
     {
         this.plugin = plugin;
 
-        Size = new Vector2(460f, 300f);
+        Size = new Vector2(520f, 560f);
         SizeCondition = ImGuiCond.FirstUseEver;
-        Flags = ImGuiWindowFlags.NoScrollbar;
         AllowPinning = false;
         AllowClickthrough = false;
     }
@@ -55,22 +57,65 @@ public sealed class AppearanceWindow : Window, IDisposable
 
     public override void Draw()
     {
-        WindowName = $"{plugin.Configuration.WindowHeaderText} Appearance {plugin.VersionLabel}###UniversalisMarketBoardAppearance";
+        WindowName = $"{plugin.Configuration.WindowHeaderText} Settings {plugin.VersionLabel}###UniversalisMarketBoardSettings";
         ImGui.PushStyleColor(ImGuiCol.Text, plugin.Configuration.TextColor.ToVector4());
-        ImGui.TextColored(plugin.Configuration.HeadingColor.ToVector4(), "Appearance");
+        switch (selectedPanel)
+        {
+            case SettingsPanel.Appearance:
+                DrawAppearanceSettings();
+                break;
+            case SettingsPanel.Debug:
+                DrawDebug();
+                break;
+            case SettingsPanel.Changelog:
+                DrawChangelog();
+                break;
+            default:
+                DrawSettingsHome();
+                break;
+        }
+
+        ImGui.PopStyleColor();
+    }
+
+    private void DrawSettingsHome()
+    {
+        ImGui.TextColored(plugin.Configuration.HeadingColor.ToVector4(), "Settings");
+        ImGui.TextDisabled("Choose an area to customise Universal Market Board or view support information.");
         ImGui.Spacing();
 
-        ImGui.TextUnformatted("Window Title");
-        var headerText = plugin.Configuration.WindowHeaderText;
-        if (DrawProminentInput("##header-title", "Type a custom title", ref headerText, 100))
+        if (DrawStyledButton("Appearance"))
         {
-            plugin.Configuration.WindowHeaderText = string.IsNullOrWhiteSpace(headerText)
-                ? "Universal Market Board"
-                : headerText;
-            plugin.Configuration.Save();
+            selectedPanel = SettingsPanel.Appearance;
+        }
+
+        ImGui.SameLine();
+        if (DrawStyledButton("Debug"))
+        {
+            selectedPanel = SettingsPanel.Debug;
+        }
+
+        ImGui.SameLine();
+        if (DrawStyledButton("Changelog"))
+        {
+            selectedPanel = SettingsPanel.Changelog;
         }
 
         ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.TextColored(plugin.Configuration.HeadingColor.ToVector4(), "Recommended Plugins");
+        ImGui.TextDisabled("Universal Market Board works best with the following plugins enabled.");
+        DrawPluginStatus(
+            "Lifestream",
+            plugin.IsLifestreamAvailable,
+            "Enables one-click travel to the world shown on a market listing.",
+            LifestreamGithubUrl);
+    }
+
+    private void DrawAppearanceSettings()
+    {
+        DrawPanelHeader("Appearance");
+
         ImGui.TextUnformatted("Behaviour");
         var showContextMenuOption = plugin.Configuration.ShowContextMenuOption;
         if (ImGui.Checkbox("Show right-click menu option", ref showContextMenuOption))
@@ -101,8 +146,101 @@ public sealed class AppearanceWindow : Window, IDisposable
             plugin.Configuration.ResetAppearance();
             plugin.Configuration.Save();
         }
+    }
 
-        ImGui.PopStyleColor();
+    private void DrawChangelog()
+    {
+        DrawPanelHeader("Changelog");
+        ImGui.TextDisabled("All published changes for Universal Market Board.");
+        ImGui.Spacing();
+
+        if (ImGui.BeginChild("umb-changelog-history", new Vector2(0f, -40f), true))
+        {
+            foreach (var line in Changelog.Content.Split('\n'))
+            {
+                var trimmedLine = line.TrimEnd('\r');
+                if (trimmedLine.StartsWith("# ", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (trimmedLine.StartsWith("## ", StringComparison.Ordinal))
+                {
+                    ImGui.TextColored(plugin.Configuration.HeadingColor.ToVector4(), trimmedLine[3..]);
+                    continue;
+                }
+
+                if (trimmedLine.StartsWith("- ", StringComparison.Ordinal))
+                {
+                    ImGui.Bullet();
+                    ImGui.SameLine();
+                    ImGui.TextWrapped(trimmedLine[2..]);
+                    continue;
+                }
+
+                ImGui.TextWrapped(trimmedLine);
+            }
+        }
+
+        ImGui.EndChild();
+
+    }
+
+    private void DrawDebug()
+    {
+        DrawPanelHeader("Debug");
+        ImGui.TextDisabled("Copy this report when requesting support. It contains no character details.");
+        ImGui.Spacing();
+
+        var report = plugin.GetDebugReport();
+        if (DrawStyledButton("Copy Debug Report"))
+        {
+            ImGui.SetClipboardText(report);
+        }
+
+        ImGui.Spacing();
+        ImGui.SetNextItemWidth(-1f);
+        ImGui.InputTextMultiline(
+            "##debug-report",
+            ref report,
+            8192,
+            new Vector2(-1f, 280f),
+            ImGuiInputTextFlags.ReadOnly);
+    }
+
+    private void DrawPanelHeader(string title)
+    {
+        if (DrawStyledButton("Back to Settings"))
+        {
+            selectedPanel = SettingsPanel.Home;
+        }
+
+        ImGui.SameLine();
+        ImGui.TextColored(plugin.Configuration.HeadingColor.ToVector4(), title);
+        ImGui.Spacing();
+    }
+
+    private void DrawPluginStatus(string pluginName, bool isDetected, string description, string? linkUrl = null)
+    {
+        var pluginNameColor = string.IsNullOrWhiteSpace(linkUrl)
+            ? plugin.Configuration.HeadingColor.ToVector4()
+            : plugin.Configuration.ButtonColor.ToVector4();
+        ImGui.TextColored(pluginNameColor, pluginName);
+        if (!string.IsNullOrWhiteSpace(linkUrl) && ImGui.IsItemHovered())
+        {
+            ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+            ImGui.SetTooltip("Open Lifestream on GitHub");
+            if (ImGui.IsItemClicked())
+            {
+                Util.OpenLink(linkUrl);
+            }
+        }
+
+        ImGui.SameLine();
+        ImGui.TextColored(
+            isDetected ? new Vector4(0.4f, 0.9f, 0.55f, 1f) : plugin.Configuration.MutedTextColor.ToVector4(),
+            isDetected ? "Detected" : "Not detected");
+        ImGui.TextWrapped(description);
     }
 
     private void DrawThemeButtons()
@@ -151,18 +289,6 @@ public sealed class AppearanceWindow : Window, IDisposable
         return clicked;
     }
 
-    private bool DrawProminentInput(string id, string hint, ref string value, int maxLength)
-    {
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, Tint(plugin.Configuration.TableHeaderColor.ToVector4(), 1.02f, 0.3f));
-        ImGui.PushStyleColor(ImGuiCol.Border, Tint(plugin.Configuration.ButtonColor.ToVector4(), 1f, 0.9f));
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1f);
-        ImGui.SetNextItemWidth(-1f);
-        var changed = ImGui.InputTextWithHint(id, hint, ref value, maxLength);
-        ImGui.PopStyleVar();
-        ImGui.PopStyleColor(2);
-        return changed;
-    }
-
     private static Vector4 Tint(Vector4 color, float brightness, float alphaScale)
     {
         return new Vector4(
@@ -170,5 +296,13 @@ public sealed class AppearanceWindow : Window, IDisposable
             Math.Clamp(color.Y * brightness, 0f, 1f),
             Math.Clamp(color.Z * brightness, 0f, 1f),
             Math.Clamp(color.W * alphaScale, 0f, 1f));
+    }
+
+    private enum SettingsPanel
+    {
+        Home,
+        Appearance,
+        Debug,
+        Changelog,
     }
 }

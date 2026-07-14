@@ -32,6 +32,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
 
     public Configuration Configuration { get; }
     public string VersionLabel { get; }
+    public bool IsLifestreamAvailable => LifestreamTravelService.IsAvailable;
     public WindowSystem WindowSystem { get; } = new("UniversalisMarketBoard");
 
     private ItemSearchIndex ItemSearchIndex { get; }
@@ -324,6 +325,29 @@ public sealed unsafe class Plugin : IDalamudPlugin
     public void OpenItem(uint itemId)
     {
         MainWindow.OpenItem(itemId);
+    }
+
+    public string GetDebugReport()
+    {
+        var scopeName = Configuration.SelectedScopeKind == Models.ScopeKind.DataCenter
+            ? "Data Centre"
+            : "World";
+        var worldName = Configuration.SelectedWorldId == 0
+            ? "All worlds"
+            : Configuration.SelectedWorldId.ToString();
+
+        return string.Join(
+            Environment.NewLine,
+            "Universal Market Board Debug Report",
+            $"Version: {VersionLabel}",
+            $"Command: {(PluginInterface.IsDev ? "/umbdev" : "/umb")}",
+            $"Market scope: {scopeName}",
+            $"Data centre: {Configuration.SelectedDataCenter}",
+            $"World: {worldName}",
+            $"Right-click menu: {(Configuration.ShowContextMenuOption ? "Enabled" : "Disabled")}",
+            $"Lifestream: {(IsLifestreamAvailable ? "Detected" : "Not detected")}",
+            string.Empty,
+            MainWindow.GetDebugStatus());
     }
 
     public void ToggleMainUi() => MainWindow.Toggle();

@@ -6,6 +6,10 @@ Universal Market Board started as a lightweight Universalis browser for Dalamud 
 
 ## Timeline
 
+### 2026-07-14: Settings and support tools
+- `v0.1.15` grouped Appearance, Debug, and Changelog into a single Settings window.
+- Added Lifestream availability detection and a copyable diagnostic report for support requests.
+
 ### 2026-07-12: Stability cleanup
 - `v0.1.13` removed the experimental Market Flippers window from the live build.
 - `v0.1.13` also fixed the item-search cancellation crash and made manual refreshes skip cached listing snapshots.

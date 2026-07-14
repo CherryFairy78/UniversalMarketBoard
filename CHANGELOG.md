@@ -2,6 +2,10 @@
 
 All notable changes to Universal Market Board will be documented in this file.
 
+## [0.1.15] - 2026-07-14
+- Reworked Settings into dedicated Appearance, Debug, and Changelog panels in one window.
+- Added Lifestream detection, a direct link to its GitHub page, and a copyable support report with current error status.
+
 ## [0.1.14] - 2026-07-12
 - Fixed the distributed plugin manifest so the packaged zip version matches the repo version.
 - Hardened shutdown and update cleanup to avoid disposed-token errors during unload.

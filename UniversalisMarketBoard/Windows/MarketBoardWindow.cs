@@ -81,6 +81,25 @@ public sealed class MarketBoardWindow : Window, IDisposable
         CancelAndDispose(ref listingsCts);
     }
 
+    public string GetDebugStatus()
+    {
+        var scopeState = isBootstrapping
+            ? "Loading"
+            : marketScopeCatalog == null ? "Unavailable" : "Ready";
+        var listingsState = isLoadingListings
+            ? "Loading"
+            : marketData == null ? "No data loaded" : "Loaded";
+
+        return string.Join(
+            Environment.NewLine,
+            $"Selected item: {selectedItem?.Name ?? "None"}",
+            $"Scope data: {scopeState}",
+            $"Listings: {listingsState}",
+            $"Scope error: {bootstrapError ?? "None"}",
+            $"Listings error: {listingsError ?? "None"}",
+            $"Last travel result: {travelStatus ?? "None"}");
+    }
+
     public override void Draw()
     {
         WindowName = $"{plugin.Configuration.WindowHeaderText} {plugin.VersionLabel}###UniversalisMarketBoard";
@@ -427,7 +446,7 @@ public sealed class MarketBoardWindow : Window, IDisposable
         }
 
         ImGui.SameLine();
-        if (DrawStyledButton("Appearance"))
+        if (DrawStyledButton("Settings"))
         {
             plugin.ToggleAppearanceUi();
         }

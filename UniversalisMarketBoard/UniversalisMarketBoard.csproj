@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.1.14</Version>
+    <Version>0.1.15</Version>
     <AssemblyName>UniversalisMarketBoard</AssemblyName>
     <RootNamespace>UniversalisMarketBoard</RootNamespace>
     <PackageProjectUrl>https://universalis.app/</PackageProjectUrl>
@@ -10,6 +10,10 @@
     <IsPackable>false</IsPackable>
     <DevDeployDir>$(MSBuildProjectDirectory)\..\Deploy\</DevDeployDir>
   </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\CHANGELOG.md" LogicalName="UniversalisMarketBoard.Changelog.md" />
+  </ItemGroup>
 
   <Target Name="CopyDevPluginToStableLocation" AfterTargets="AfterBuild">
     <ItemGroup>

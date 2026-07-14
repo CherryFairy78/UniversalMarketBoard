@@ -4,11 +4,15 @@ This file collects the published release notes in one place for quick reference.
 
 ## Latest
 
+### v0.1.15
+- Reworked Settings into Appearance, Debug, and Changelog panels without opening separate windows.
+- Added Lifestream detection, a direct GitHub link, and a copyable support report containing current error status.
+
+## Previous
+
 ### v0.1.14
 - Fixed the packaged plugin manifest so Dalamud no longer rejects the update with a version mismatch.
 - Hardened plugin shutdown to avoid disposed-token errors while unloading or updating.
-
-## Previous
 
 ### v0.1.13
 - Removed Market Flippers from the live plugin to keep the core market board experience stable.

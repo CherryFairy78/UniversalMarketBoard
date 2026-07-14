@@ -2,7 +2,7 @@
   "Author": "Meghann",
   "Name": "Universal Market Board",
   "InternalName": "UniversalisMarketBoard",
-  "AssemblyVersion": "0.1.14.0",
+  "AssemblyVersion": "0.1.15.0",
   "Description": "Browse HQ and NQ market board listings, search any item, switch between world or data centre scopes, and sort prices from highest to lowest. Slash command: /umb",
   "ApplicableVersion": "any",
   "Tags": [
